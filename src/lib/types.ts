@@ -43,6 +43,47 @@ export const AMBITO_DOT: Record<Ambito, string> = {
   greco: "bg-blue-700",
 };
 
+/**
+ * Area culturale unificata, usata per filtrare insieme eventi (via `ambito`) e opere
+ * (via `lingua`). Nata "romano vs greco" per il solo mondo antico, arricchita per
+ * coprire le culture del basso Medioevo introdotte con le schede verso Dante.
+ */
+export type Area = "greco" | "romano" | "arabo-ebraico" | "francese-occitano" | "italiano";
+
+export const AREA_LABEL: Record<Area, string> = {
+  greco: "Greco",
+  romano: "Romano/latino",
+  "arabo-ebraico": "Arabo-ebraico",
+  "francese-occitano": "Francese/occitano",
+  italiano: "Italiano",
+};
+
+export const AREA_DOT: Record<Area, string> = {
+  greco: "bg-blue-700",
+  romano: "bg-red-700",
+  "arabo-ebraico": "bg-emerald-700",
+  "francese-occitano": "bg-violet-700",
+  italiano: "bg-amber-700",
+};
+
+const LINGUA_TO_AREA: Record<string, Area> = {
+  greco: "greco",
+  latino: "romano",
+  arabo: "arabo-ebraico",
+  ebraico: "arabo-ebraico",
+  occitano: "francese-occitano",
+  francese: "francese-occitano",
+  italiano: "italiano",
+};
+
+export function operaArea(lingua: string): Area | null {
+  return LINGUA_TO_AREA[lingua] ?? null;
+}
+
+export function eventoArea(ambito: Ambito): Area {
+  return ambito;
+}
+
 export const INFLUENZA_LABEL: Record<Influenza, string> = {
   alta: "Influenza alta",
   media: "Influenza media",

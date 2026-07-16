@@ -54,6 +54,24 @@ export default function Spiral({
   const trackD = useMemo(() => spiralTrackD(params), [params]);
   const cursorPoint = annoToPoint(cursorAnno, params);
 
+  // Posiziona il box hover accanto al pallino dell'opera in questione (calcolato dalla
+  // sua posizione sulla spirale, in percentuale del contenitore quadrato), invece che
+  // fisso in un angolo: si "ancora" dal lato opposto quando il pallino è vicino a un
+  // bordo, per non uscire mai dal riquadro.
+  const hoveredPos = hovered ? annoToPoint(hovered.anno, params) : null;
+  const leftPct = hoveredPos ? (hoveredPos.x / SIZE) * 100 : 50;
+  const topPct = hoveredPos ? (hoveredPos.y / SIZE) * 100 : 50;
+  const anchorRight = leftPct > 58;
+  const anchorBottom = topPct > 62;
+  const tooltipStyle: React.CSSProperties = {
+    ...(anchorRight
+      ? { right: `calc(${100 - leftPct}% + 14px)` }
+      : { left: `calc(${leftPct}% + 14px)` }),
+    ...(anchorBottom
+      ? { bottom: `calc(${100 - topPct}% + 14px)` }
+      : { top: `calc(${topPct}% + 14px)` }),
+  };
+
   const vicini = useMemo(() => {
     return opereFiltrate
       .map((o) => ({ o, d: Math.abs(o.anno - cursorAnno) }))
@@ -147,7 +165,8 @@ export default function Spiral({
 
         {hovered && (
           <div
-            className="absolute bottom-2 left-2 right-2 max-w-md rounded-lg border border-amber-300 bg-amber-50/95 p-4 shadow-lg backdrop-blur"
+            className="absolute w-72 rounded-lg border border-amber-300 bg-amber-50/95 p-4 shadow-lg backdrop-blur"
+            style={tooltipStyle}
             onMouseEnter={() => showOpera(hovered)}
             onMouseLeave={scheduleHide}
           >

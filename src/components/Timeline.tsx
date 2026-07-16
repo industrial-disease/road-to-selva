@@ -2,30 +2,40 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { Rilevanza, TimelineItem } from "@/lib/types";
-import { formatAnno, AMBITO_DOT, INFLUENZA_LABEL, RILEVANZA_LABEL, passaRilevanza } from "@/lib/types";
+import type { Area, Rilevanza, TimelineItem } from "@/lib/types";
+import {
+  formatAnno,
+  AMBITO_DOT,
+  AREA_LABEL,
+  AREA_DOT,
+  INFLUENZA_LABEL,
+  RILEVANZA_LABEL,
+  passaRilevanza,
+  operaArea,
+  eventoArea,
+} from "@/lib/types";
 
 type Filtro = "tutto" | "solo-opere" | "solo-eventi";
 
 export default function Timeline({ items }: { items: TimelineItem[] }) {
   const [filtro, setFiltro] = useState<Filtro>("tutto");
-  const [ambito, setAmbito] = useState<"tutti" | "romano" | "greco">("tutti");
+  const [area, setArea] = useState<"tutti" | Area>("tutti");
   const [rilevanza, setRilevanza] = useState<Rilevanza>("tutte");
 
   const filtrati = useMemo(() => {
     return items.filter((item) => {
       if (filtro === "solo-opere" && item.kind !== "opera") return false;
       if (filtro === "solo-eventi" && item.kind !== "evento") return false;
-      if (ambito !== "tutti") {
-        const itemAmbito = item.kind === "opera" ? null : item.data.ambito;
-        if (item.kind === "evento" && itemAmbito !== ambito) return false;
+      if (area !== "tutti") {
+        const itemArea = item.kind === "opera" ? operaArea(item.data.lingua) : eventoArea(item.data.ambito);
+        if (itemArea !== area) return false;
       }
       if (item.kind === "opera" && !passaRilevanza(item.data.influenzaDante, rilevanza)) {
         return false;
       }
       return true;
     });
-  }, [items, filtro, ambito, rilevanza]);
+  }, [items, filtro, area, rilevanza]);
 
   return (
     <div>
@@ -47,20 +57,13 @@ export default function Timeline({ items }: { items: TimelineItem[] }) {
             </FilterButton>
           ))}
         </FilterGroup>
-        <FilterGroup label="Ambito">
-          {(
-            [
-              ["tutti", "Tutti"],
-              ["greco", "Greco"],
-              ["romano", "Romano"],
-            ] as const
-          ).map(([value, label]) => (
-            <FilterButton
-              key={value}
-              active={ambito === value}
-              onClick={() => setAmbito(value)}
-            >
-              {label}
+        <FilterGroup label="Area culturale">
+          <FilterButton active={area === "tutti"} onClick={() => setArea("tutti")}>
+            Tutti
+          </FilterButton>
+          {(Object.keys(AREA_LABEL) as Area[]).map((value) => (
+            <FilterButton key={value} active={area === value} onClick={() => setArea(value)}>
+              {AREA_LABEL[value]}
             </FilterButton>
           ))}
         </FilterGroup>
@@ -88,7 +91,13 @@ export default function Timeline({ items }: { items: TimelineItem[] }) {
               className="rounded-lg border border-amber-300 bg-amber-50 p-4"
             >
               <div className="flex items-baseline justify-between gap-4">
-                <h3 className="text-lg font-semibold text-stone-900">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-stone-900">
+                  {(() => {
+                    const a = operaArea(item.data.lingua);
+                    return a ? (
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${AREA_DOT[a]}`} />
+                    ) : null;
+                  })()}
                   <Link href={`/opere/${item.data.slug}`} className="hover:underline">
                     {item.data.opera}
                   </Link>
