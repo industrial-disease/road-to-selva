@@ -7,7 +7,7 @@ disciplina: Filosofia
 lingua: greco
 influenzaDante: alta
 tipo: indiretta
-letto: false
+letto: true
 ---
 
 - Costruisce la città ideale come specchio dell'anima giusta, introducendo il mito della caverna come immagine del cammino verso la verità.
