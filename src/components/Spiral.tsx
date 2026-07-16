@@ -2,8 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Opera, Evento } from "@/lib/types";
-import { formatAnno, PERIODO_LABEL } from "@/lib/types";
+import type { Opera, Evento, Rilevanza } from "@/lib/types";
+import { formatAnno, PERIODO_LABEL, RILEVANZA_LABEL, passaRilevanza } from "@/lib/types";
 import { makeSpiralParams, annoToPoint, spiralTrackD, PERIODO_COLOR } from "@/lib/spiral";
 
 const SIZE = 940;
@@ -26,6 +26,14 @@ export default function Spiral({
 
   const [hovered, setHovered] = useState<Opera | null>(null);
   const [cursorAnno, setCursorAnno] = useState<number>(Math.round((minAnno + maxAnno) / 2));
+  const [rilevanza, setRilevanza] = useState<Rilevanza>("tutte");
+
+  // La scala della spirale (params) resta fissa sull'intero dataset: filtrare la
+  // rilevanza deve "diradare" i pallini mostrati, non far respirare/deformare la spirale.
+  const opereFiltrate = useMemo(
+    () => opere.filter((o) => passaRilevanza(o.influenzaDante, rilevanza)),
+    [opere, rilevanza]
+  );
 
   // Il box del hover è lontano dal pallino (in basso nell'SVG): senza un piccolo
   // ritardo cancellabile, il mouse esce dal cerchio prima di raggiungere il box e
@@ -47,15 +55,15 @@ export default function Spiral({
   const cursorPoint = annoToPoint(cursorAnno, params);
 
   const vicini = useMemo(() => {
-    return opere
+    return opereFiltrate
       .map((o) => ({ o, d: Math.abs(o.anno - cursorAnno) }))
       .filter((x) => x.d <= CURSOR_WINDOW)
       .sort((a, b) => a.d - b.d)
       .slice(0, 6)
       .map((x) => x.o);
-  }, [opere, cursorAnno]);
+  }, [opereFiltrate, cursorAnno]);
 
-  const periodiPresenti = Array.from(new Set(opere.map((o) => o.periodo)));
+  const periodiPresenti = Array.from(new Set(opereFiltrate.map((o) => o.periodo)));
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -83,7 +91,7 @@ export default function Spiral({
             );
           })}
 
-          {opere.map((o) => {
+          {opereFiltrate.map((o) => {
             const { x, y } = annoToPoint(o.anno, params);
             const near = Math.abs(o.anno - cursorAnno) <= CURSOR_WINDOW;
             const isHovered = hovered?.slug === o.slug;
@@ -166,6 +174,30 @@ export default function Spiral({
       </div>
 
       <aside className="space-y-6">
+        <div>
+          <label className="mb-1 block text-xs uppercase tracking-wide text-stone-400">
+            Rilevanza per Dante
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(RILEVANZA_LABEL) as Rilevanza[]).map((value) => (
+              <button
+                key={value}
+                onClick={() => setRilevanza(value)}
+                className={`rounded-full px-3 py-1 text-sm transition ${
+                  rilevanza === value
+                    ? "bg-stone-900 text-white"
+                    : "bg-white text-stone-700 ring-1 ring-inset ring-stone-300 hover:bg-stone-100"
+                }`}
+              >
+                {RILEVANZA_LABEL[value]}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-stone-400">
+            {opereFiltrate.length} di {opere.length} opere mostrate
+          </p>
+        </div>
+
         <div>
           <label className="mb-1 block text-xs uppercase tracking-wide text-stone-400">
             Viaggia nel tempo

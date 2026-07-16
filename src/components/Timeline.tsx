@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { TimelineItem } from "@/lib/types";
-import { formatAnno, AMBITO_DOT, INFLUENZA_LABEL } from "@/lib/types";
+import type { Rilevanza, TimelineItem } from "@/lib/types";
+import { formatAnno, AMBITO_DOT, INFLUENZA_LABEL, RILEVANZA_LABEL, passaRilevanza } from "@/lib/types";
 
 type Filtro = "tutto" | "solo-opere" | "solo-eventi";
 
 export default function Timeline({ items }: { items: TimelineItem[] }) {
   const [filtro, setFiltro] = useState<Filtro>("tutto");
   const [ambito, setAmbito] = useState<"tutti" | "romano" | "greco">("tutti");
+  const [rilevanza, setRilevanza] = useState<Rilevanza>("tutte");
 
   const filtrati = useMemo(() => {
     return items.filter((item) => {
@@ -19,9 +20,12 @@ export default function Timeline({ items }: { items: TimelineItem[] }) {
         const itemAmbito = item.kind === "opera" ? null : item.data.ambito;
         if (item.kind === "evento" && itemAmbito !== ambito) return false;
       }
+      if (item.kind === "opera" && !passaRilevanza(item.data.influenzaDante, rilevanza)) {
+        return false;
+      }
       return true;
     });
-  }, [items, filtro, ambito]);
+  }, [items, filtro, ambito, rilevanza]);
 
   return (
     <div>
@@ -57,6 +61,17 @@ export default function Timeline({ items }: { items: TimelineItem[] }) {
               onClick={() => setAmbito(value)}
             >
               {label}
+            </FilterButton>
+          ))}
+        </FilterGroup>
+        <FilterGroup label="Rilevanza per Dante">
+          {(Object.keys(RILEVANZA_LABEL) as Rilevanza[]).map((value) => (
+            <FilterButton
+              key={value}
+              active={rilevanza === value}
+              onClick={() => setRilevanza(value)}
+            >
+              {RILEVANZA_LABEL[value]}
             </FilterButton>
           ))}
         </FilterGroup>

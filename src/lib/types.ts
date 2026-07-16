@@ -49,6 +49,22 @@ export const INFLUENZA_LABEL: Record<Influenza, string> = {
   bassa: "Influenza bassa",
 };
 
+/** Soglia di rilevanza per la "missione dantesca": quanto ci si vuole restringere
+ * alle opere che hanno un legame più solido e diretto con la Commedia. */
+export type Rilevanza = "tutte" | "alta-media" | "solo-alta";
+
+export const RILEVANZA_LABEL: Record<Rilevanza, string> = {
+  tutte: "Tutte",
+  "alta-media": "Alta + media",
+  "solo-alta": "Solo alta",
+};
+
+export function passaRilevanza(influenza: Influenza, soglia: Rilevanza): boolean {
+  if (soglia === "tutte") return true;
+  if (soglia === "solo-alta") return influenza === "alta";
+  return influenza === "alta" || influenza === "media";
+}
+
 export const TIPO_INFLUENZA_LABEL: Record<TipoInfluenza, string> = {
   diretta: "Fonte diretta di Dante",
   indiretta: "Fonte indiretta di Dante",
