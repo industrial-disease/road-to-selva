@@ -7,7 +7,7 @@ disciplina: Tragedia
 lingua: greco
 influenzaDante: bassa
 tipo: indiretta
-letto: false
+letto: true
 ---
 
 - Unica trilogia tragica greca giunta intera: la catena di sangue nella casa degli Atridi si risolve nel passaggio dalla vendetta privata alla giustizia della polis (il tribunale dell'Areopago).

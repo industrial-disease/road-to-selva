@@ -7,7 +7,7 @@ disciplina: Storia
 lingua: greco
 influenzaDante: media
 tipo: indiretta
-letto: false
+letto: true
 ---
 
 - Racconta la guerra fra Atene e Sparta con un rigore analitico e una ricerca di cause razionali che ne fanno il fondatore della storiografia critica.

@@ -7,7 +7,7 @@ disciplina: Poesia epica
 lingua: greco
 influenzaDante: alta
 tipo: indiretta
-letto: false
+letto: true
 ---
 
 - L'ira di Achille come motore dell'intero poema: un episodio limitato (poche settimane dell'ultimo anno di guerra) che diventa specchio del destino umano.
