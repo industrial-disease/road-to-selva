@@ -57,6 +57,33 @@ export function spiralTrackD(p: SpiralParams, steps = 500): string {
   return pts.join(" ");
 }
 
+export interface Star {
+  x: number;
+  y: number;
+  r: number;
+  o: number;
+}
+
+// Campo stellare deterministico: generato con un LCG a seme fisso (non Math.random),
+// così server e client producono esattamente le stesse coordinate ed evitiamo mismatch
+// di idratazione. I valori sono arrotondati per lo stesso motivo di annoToPoint.
+export function makeStars(count = 150, size = 940): Star[] {
+  let seed = 20260716;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const stars: Star[] = [];
+  for (let i = 0; i < count; i++) {
+    const x = round(rand() * size);
+    const y = round(rand() * size);
+    const r = round(0.3 + rand() * 1.2);
+    const o = round(0.12 + rand() * 0.5);
+    stars.push({ x, y, r, o });
+  }
+  return stars;
+}
+
 export const PERIODO_COLOR: Record<string, string> = {
   "grecia-arcaica": "#0369a1",
   "grecia-classica": "#0284c7",
