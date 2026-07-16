@@ -13,7 +13,6 @@ const MAX_AUTHOR_THREADS = 14; // per non affollare gli autori con moltissime op
 
 // Colori evento più brillanti sul fondo scuro rispetto alla vista chiara.
 const EVENTO_COLOR = { greco: "#60a5fa", romano: "#f87171" } as const;
-const DANTE_THREAD = "#fbbf24";
 
 export default function Spiral({
   opere,
@@ -23,7 +22,11 @@ export default function Spiral({
   eventi: Pick<Evento, "anno" | "ambito" | "testo" | "approssimato">[];
 }) {
   const anni = [...opere.map((o) => o.anno), ...eventi.map((e) => e.anno)];
-  const minAnno = Math.min(...anni);
+  // Il centro della spirale è l'Iliade, non semplicemente l'anno più basso in assoluto:
+  // alcuni eventi storici (fondazione di Roma/Cartagine) la precedono di pochi decenni,
+  // ma è da Omero che la spirale delle letture "parte" concettualmente.
+  const iliade = opere.find((o) => o.slug === "omero-iliade");
+  const minAnno = iliade ? iliade.anno : Math.min(...anni);
   const maxAnno = Math.max(...anni);
   const params = useMemo(
     () => makeSpiralParams(minAnno, maxAnno, { turns: 7, rMin: 46, rMax: 460, cx: SIZE / 2, cy: SIZE / 2 }),
@@ -54,12 +57,6 @@ export default function Spiral({
       else m.set(o.autore, [o]);
     }
     return m;
-  }, [opere]);
-
-  const danteTarget = useMemo(() => {
-    const dante = opere.filter((o) => o.periodo === "dante");
-    if (!dante.length) return null;
-    return dante.reduce((a, b) => (b.anno > a.anno ? b : a)); // la Commedia: l'opera-Dante più tarda
   }, [opere]);
 
   // --- Cinepresa: trasformazione di zoom/pan sul periodo a fuoco --------------
@@ -110,29 +107,18 @@ export default function Spiral({
   const stars = useMemo(() => makeStars(150, SIZE), []);
   const cursorPoint = annoToPoint(cursorAnno, params);
 
-  // Fili da mostrare per l'opera sotto il cursore, già trasformati in coordinate SVG.
-  // Stesso autore → anello luminoso sui punti (le opere di uno stesso autore sono spesso
-  // vicinissime nel tempo: una linea vi si perderebbe, un anello si vede sempre).
-  // Verso Dante → filo dorato singolo, solo per le opere che hanno effettivamente
-  // influenzato Dante (non per le sue stesse opere).
+  // Anelli sulle altre opere dello stesso autore: le opere di uno stesso autore sono
+  // spesso vicinissime nel tempo, una linea vi si perderebbe, un anello si vede sempre.
   const threads = useMemo(() => {
     if (!hovered) return null;
-    const from = annoToPoint(hovered.anno, params);
-
     const stessoAutore = (perAutore.get(hovered.autore) ?? [])
       .filter((o) => o.slug !== hovered.slug)
       .map((o) => ({ o, d: Math.abs(o.anno - hovered.anno) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, MAX_AUTHOR_THREADS)
       .map(({ o }) => annoToPoint(o.anno, params));
-
-    const danteLines =
-      danteTarget && hovered.periodo !== "dante" && (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
-        ? [annoToPoint(danteTarget.anno, params)]
-        : [];
-
-    return { from, stessoAutore, danteLines };
-  }, [hovered, params, perAutore, danteTarget]);
+    return { stessoAutore };
+  }, [hovered, params, perAutore]);
 
   // Posiziona il box hover accanto al pallino, tenendo conto dello zoom della cinepresa.
   const hoveredPos = hovered ? annoToPoint(hovered.anno, params) : null;
@@ -225,42 +211,6 @@ export default function Spiral({
               );
             })}
 
-            {/* Fili verso Dante (sotto ai pallini): singolo filo, o raggiera se si è
-                sulla Vita Nuova stessa */}
-            {threads && threads.danteLines.length > 0 && (
-              <g className="pointer-events-none">
-                {threads.danteLines.map((p, i) => (
-                  <g key={`dt-${i}`}>
-                    <line
-                      className="thread-line"
-                      style={{ animationDelay: `${(i * 0.012).toFixed(3)}s` }}
-                      pathLength={1}
-                      x1={threads.from.x}
-                      y1={threads.from.y}
-                      x2={p.x}
-                      y2={p.y}
-                      stroke={DANTE_THREAD}
-                      strokeWidth={4 / zoom.k}
-                      strokeOpacity={0.1}
-                    />
-                    <line
-                      className="thread-line"
-                      style={{ animationDelay: `${(i * 0.012).toFixed(3)}s` }}
-                      pathLength={1}
-                      x1={threads.from.x}
-                      y1={threads.from.y}
-                      x2={p.x}
-                      y2={p.y}
-                      stroke={DANTE_THREAD}
-                      strokeWidth={1.3 / zoom.k}
-                      strokeOpacity={0.8}
-                      strokeDasharray={`${5 / zoom.k} ${4 / zoom.k}`}
-                    />
-                  </g>
-                ))}
-              </g>
-            )}
-
             {/* Le opere: punti luminosi con alone. Compaiono in sequenza dal centro. */}
             {opereFiltrate.map((o) => {
               const { x, y } = annoToPoint(o.anno, params);
@@ -347,13 +297,6 @@ export default function Spiral({
               strokeWidth={2}
               opacity={0.9}
             />
-
-            <text x={params.cx} y={params.cy - 4} textAnchor="middle" className="fill-stone-400 text-[11px]">
-              VIII a.C.
-            </text>
-            <text x={params.cx} y={params.cy + 14} textAnchor="middle" className="fill-stone-400 text-[11px]">
-              → Dante
-            </text>
           </g>
         </svg>
 
@@ -510,12 +453,8 @@ export default function Spiral({
               Eventi storici (ambito romano)
             </li>
             <li className="flex items-center gap-2 pt-1">
-              <span className="inline-block h-px w-4 shrink-0" style={{ backgroundColor: DANTE_THREAD }} />
-              Filo verso Dante (al passaggio del mouse)
-            </li>
-            <li className="flex items-center gap-2">
               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-stone-300" />
-              Anello: altre opere dello stesso autore
+              Anello: altre opere dello stesso autore (al passaggio del mouse)
             </li>
           </ul>
         </div>

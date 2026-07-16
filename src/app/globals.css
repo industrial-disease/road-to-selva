@@ -84,18 +84,6 @@ body {
   }
 }
 
-/* I fili di influenza compaiono con un rapido bagliore. */
-@keyframes thread-in {
-  from {
-    opacity: 0;
-    stroke-dashoffset: 1;
-  }
-  to {
-    opacity: 1;
-    stroke-dashoffset: 0;
-  }
-}
-
 /* Anello sulle opere dello stesso autore: piccolo "pop" invece di un filo, che sui
    cluster più densi (es. Cicerone) resterebbe illeggibile. */
 @keyframes ring-in {
@@ -162,11 +150,6 @@ body {
   animation: card-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) both;
 }
 
-.thread-line {
-  stroke-dasharray: 1;
-  animation: thread-in 0.45s ease-out both;
-}
-
 .author-ring {
   transform-box: fill-box;
   transform-origin: center;
@@ -190,16 +173,12 @@ body {
   .star-field,
   .core-glow,
   .hover-card,
-  .thread-line,
   .author-ring,
   .fade-title {
     animation: none;
   }
   .zoom-group {
     transition: none;
-  }
-  .thread-line {
-    stroke-dasharray: none;
   }
   .dot-enter {
     opacity: 1;

@@ -21,10 +21,10 @@ export default function Home() {
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-stone-50">Road to Selva</h1>
             <p className="mt-2 max-w-2xl text-stone-400">
-              La spirale del tempo: dal VIII secolo a.C. a Dante. Ogni punto luminoso è
+              La spirale del tempo: dall&apos;Iliade alla Commedia. Ogni punto luminoso è
               un&apos;opera; il pulviscolo intorno è il contesto storico. Passa sul punto per
-              vederne i fili di influenza verso Dante, clicca un periodo per metterlo a fuoco,
-              trascina il cursore per viaggiare nel tempo.
+              vedere le altre opere dello stesso autore, clicca un periodo per metterlo a
+              fuoco, trascina il cursore per viaggiare nel tempo.
             </p>
           </div>
           <Link
