@@ -113,9 +113,8 @@ export default function Spiral({
   // Fili da mostrare per l'opera sotto il cursore, già trasformati in coordinate SVG.
   // Stesso autore → anello luminoso sui punti (le opere di uno stesso autore sono spesso
   // vicinissime nel tempo: una linea vi si perderebbe, un anello si vede sempre).
-  // Verso Dante → filo dorato singolo; ma se si passa sulla Vita Nuova stessa, il filo
-  // si apre a raggiera verso TUTTE le opere di influenza alta/media: il punto d'arrivo
-  // del viaggio che mostra da dove viene tutto.
+  // Verso Dante → filo dorato singolo, solo per le opere che hanno effettivamente
+  // influenzato Dante (non per le sue stesse opere).
   const threads = useMemo(() => {
     if (!hovered) return null;
     const from = annoToPoint(hovered.anno, params);
@@ -128,16 +127,12 @@ export default function Spiral({
       .map(({ o }) => annoToPoint(o.anno, params));
 
     const danteLines =
-      hovered.periodo === "dante"
-        ? opere
-            .filter((o) => o.slug !== hovered.slug && (o.influenzaDante === "alta" || o.influenzaDante === "media"))
-            .map((o) => annoToPoint(o.anno, params))
-        : danteTarget && (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
+      danteTarget && hovered.periodo !== "dante" && (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
         ? [annoToPoint(danteTarget.anno, params)]
         : [];
 
     return { from, stessoAutore, danteLines };
-  }, [hovered, params, perAutore, danteTarget, opere]);
+  }, [hovered, params, perAutore, danteTarget]);
 
   // Posiziona il box hover accanto al pallino, tenendo conto dello zoom della cinepresa.
   const hoveredPos = hovered ? annoToPoint(hovered.anno, params) : null;
@@ -516,7 +511,7 @@ export default function Spiral({
             </li>
             <li className="flex items-center gap-2 pt-1">
               <span className="inline-block h-px w-4 shrink-0" style={{ backgroundColor: DANTE_THREAD }} />
-              Filo verso Dante (o a raggiera, se passi sulla Vita Nuova)
+              Filo verso Dante (al passaggio del mouse)
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-stone-300" />
