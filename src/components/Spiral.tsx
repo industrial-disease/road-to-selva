@@ -9,9 +9,11 @@ import { makeSpiralParams, annoToPoint, annoToT, spiralTrackD, makeStars, PERIOD
 const SIZE = 940;
 const CURSOR_WINDOW = 30; // anni di "vicinanza" evidenziati intorno al cursore
 const DRAW_DURATION = 2.6; // deve combaciare con .spiral-track-anim in globals.css
+const MAX_AUTHOR_THREADS = 14; // per non affollare gli autori con moltissime opere
 
 // Colori evento più brillanti sul fondo scuro rispetto alla vista chiara.
 const EVENTO_COLOR = { greco: "#60a5fa", romano: "#f87171" } as const;
+const DANTE_THREAD = "#fbbf24";
 
 export default function Spiral({
   opere,
@@ -31,6 +33,7 @@ export default function Spiral({
   const [hovered, setHovered] = useState<Opera | null>(null);
   const [cursorAnno, setCursorAnno] = useState<number>(Math.round((minAnno + maxAnno) / 2));
   const [rilevanza, setRilevanza] = useState<Rilevanza>("tutte");
+  const [focus, setFocus] = useState<string | null>(null); // periodo messo a fuoco (cinepresa)
 
   // La scala della spirale (params) resta fissa sull'intero dataset: filtrare la
   // rilevanza deve "diradare" i pallini mostrati, non far respirare/deformare la spirale.
@@ -38,6 +41,56 @@ export default function Spiral({
     () => opere.filter((o) => passaRilevanza(o.influenzaDante, rilevanza)),
     [opere, rilevanza]
   );
+
+  // --- Fili di influenza: relazioni fra opere ---------------------------------
+  // Non esistono archi "X influenza Y" nei dati, quindi li deriviamo: le opere dello
+  // stesso autore (la sua costellazione) e un filo dorato verso Dante per le opere di
+  // influenza alta/media (es. Ovidio → Commedia).
+  const perAutore = useMemo(() => {
+    const m = new Map<string, Opera[]>();
+    for (const o of opere) {
+      const arr = m.get(o.autore);
+      if (arr) arr.push(o);
+      else m.set(o.autore, [o]);
+    }
+    return m;
+  }, [opere]);
+
+  const danteTarget = useMemo(() => {
+    const dante = opere.filter((o) => o.periodo === "dante");
+    if (!dante.length) return null;
+    return dante.reduce((a, b) => (b.anno > a.anno ? b : a)); // la Commedia: l'opera-Dante più tarda
+  }, [opere]);
+
+  // --- Cinepresa: trasformazione di zoom/pan sul periodo a fuoco --------------
+  const zoom = useMemo(() => {
+    const identity = { k: 1, tx: 0, ty: 0 };
+    if (!focus) return identity;
+    const yrs = opere.filter((o) => o.periodo === focus).map((o) => o.anno);
+    if (!yrs.length) return identity;
+    const a0 = Math.min(...yrs);
+    const a1 = Math.max(...yrs);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const N = 48;
+    for (let i = 0; i <= N; i++) {
+      const yr = a0 + ((a1 - a0) * i) / N;
+      const { x, y } = annoToPoint(yr, params);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    // lato del riquadro quadrato inquadrato, con margine; limitato per evitare
+    // zoom eccessivi (periodi minuscoli) o nulli (periodi che avvolgono tutto).
+    let s = Math.max(maxX - minX, maxY - minY) * 1.45;
+    s = Math.max(SIZE / 4, Math.min(s, SIZE));
+    const k = SIZE / s;
+    return { k, tx: SIZE / 2 - k * cx, ty: SIZE / 2 - k * cy };
+  }, [focus, opere, params]);
+
+  const zoomTransform = `translate(${zoom.tx.toFixed(2)}px, ${zoom.ty.toFixed(2)}px) scale(${zoom.k.toFixed(4)})`;
 
   // Il box del hover è staccato dal pallino: senza un piccolo ritardo cancellabile, il
   // mouse esce dal cerchio prima di raggiungere il box e questo sparisce a metà strada.
@@ -57,11 +110,31 @@ export default function Spiral({
   const stars = useMemo(() => makeStars(150, SIZE), []);
   const cursorPoint = annoToPoint(cursorAnno, params);
 
-  // Posiziona il box hover accanto al pallino dell'opera, ancorandosi dal lato opposto
-  // quando il pallino è vicino a un bordo, per non uscire mai dal riquadro.
+  // Fili da mostrare per l'opera sotto il cursore, già trasformati in coordinate SVG.
+  const threads = useMemo(() => {
+    if (!hovered) return null;
+    const from = annoToPoint(hovered.anno, params);
+    const stesso = (perAutore.get(hovered.autore) ?? [])
+      .filter((o) => o.slug !== hovered.slug)
+      .map((o) => ({ o, d: Math.abs(o.anno - hovered.anno) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, MAX_AUTHOR_THREADS)
+      .map(({ o }) => ({ p: annoToPoint(o.anno, params), color: PERIODO_COLOR[o.periodo] ?? "#a8a29e" }));
+    const versoDante =
+      danteTarget &&
+      hovered.periodo !== "dante" &&
+      (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
+        ? annoToPoint(danteTarget.anno, params)
+        : null;
+    return { from, stesso, versoDante };
+  }, [hovered, params, perAutore, danteTarget]);
+
+  // Posiziona il box hover accanto al pallino, tenendo conto dello zoom della cinepresa.
   const hoveredPos = hovered ? annoToPoint(hovered.anno, params) : null;
-  const leftPct = hoveredPos ? (hoveredPos.x / SIZE) * 100 : 50;
-  const topPct = hoveredPos ? (hoveredPos.y / SIZE) * 100 : 50;
+  const screenX = hoveredPos ? zoom.k * hoveredPos.x + zoom.tx : SIZE / 2;
+  const screenY = hoveredPos ? zoom.k * hoveredPos.y + zoom.ty : SIZE / 2;
+  const leftPct = Math.max(0, Math.min(100, (screenX / SIZE) * 100));
+  const topPct = Math.max(0, Math.min(100, (screenY / SIZE) * 100));
   const anchorRight = leftPct > 58;
   const anchorBottom = topPct > 62;
   const tooltipStyle: React.CSSProperties = {
@@ -84,6 +157,8 @@ export default function Spiral({
 
   const periodiPresenti = Array.from(new Set(opereFiltrate.map((o) => o.periodo)));
 
+  const toggleFocus = (p: string) => setFocus((cur) => (cur === p ? null : p));
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="relative">
@@ -101,118 +176,184 @@ export default function Spiral({
             </radialGradient>
           </defs>
 
-          {/* Campo stellare di fondo, in lentissima rotazione */}
+          {/* Fondale fisso (non segue la cinepresa): stelle + nucleo */}
           <g className="star-field">
             {stars.map((s, i) => (
               <circle key={`st-${i}`} cx={s.x} cy={s.y} r={s.r} fill="#e7e5e4" opacity={s.o} />
             ))}
           </g>
-
-          {/* Nucleo caldo pulsante: l'origine del tempo */}
           <circle className="core-glow" cx={params.cx} cy={params.cy} r={150} fill="url(#coreGlow)" />
 
-          {/* La traccia della spirale, che si disegna dal centro verso l'esterno */}
-          <path
-            className="spiral-track-anim"
-            d={trackD}
-            pathLength={1}
-            fill="none"
-            stroke="#a8a29e"
-            strokeWidth={1}
-            strokeOpacity={0.35}
-          />
+          {/* Gruppo che la cinepresa zooma/panoramica */}
+          <g className="zoom-group" style={{ transform: zoomTransform }}>
+            {/* La traccia della spirale, che si disegna dal centro verso l'esterno */}
+            <path
+              className="spiral-track-anim"
+              d={trackD}
+              pathLength={1}
+              fill="none"
+              stroke="#a8a29e"
+              strokeWidth={1}
+              strokeOpacity={focus ? 0.16 : 0.35}
+            />
 
-          {/* Pulviscolo degli eventi storici */}
-          {eventi.map((e, i) => {
-            const { x, y } = annoToPoint(e.anno, params);
-            const near = Math.abs(e.anno - cursorAnno) <= CURSOR_WINDOW;
-            const t = annoToT(e.anno, params);
-            const baseOp = near ? 0.7 : 0.22;
-            return (
-              <circle
-                key={`ev-${i}`}
-                className="dust-enter"
-                style={{
-                  animationDelay: `${(t * DRAW_DURATION).toFixed(2)}s`,
-                  ["--dust-op" as string]: baseOp,
-                }}
-                cx={x}
-                cy={y}
-                r={near ? 2.4 : 1.4}
-                fill={e.ambito === "greco" ? EVENTO_COLOR.greco : EVENTO_COLOR.romano}
-                opacity={baseOp}
-              />
-            );
-          })}
-
-          {/* Le opere: punti luminosi con alone. Compaiono in sequenza dal centro. */}
-          {opereFiltrate.map((o) => {
-            const { x, y } = annoToPoint(o.anno, params);
-            const near = Math.abs(o.anno - cursorAnno) <= CURSOR_WINDOW;
-            const isHovered = hovered?.slug === o.slug;
-            const t = annoToT(o.anno, params);
-            const rBase = o.influenzaDante === "alta" ? 7 : o.influenzaDante === "media" ? 5.5 : 4.5;
-            const r = isHovered ? rBase + 3 : near ? rBase + 1.5 : rBase;
-            const color = PERIODO_COLOR[o.periodo] ?? "#a8a29e";
-            return (
-              <g
-                key={o.slug}
-                className="dot-enter"
-                style={{ animationDelay: `${(t * DRAW_DURATION).toFixed(2)}s` }}
-              >
-                {/* alone luminoso */}
+            {/* Pulviscolo degli eventi storici */}
+            {eventi.map((e, i) => {
+              const { x, y } = annoToPoint(e.anno, params);
+              const near = Math.abs(e.anno - cursorAnno) <= CURSOR_WINDOW;
+              const t = annoToT(e.anno, params);
+              const baseOp = (near ? 0.7 : 0.22) * (focus ? 0.3 : 1);
+              return (
                 <circle
+                  key={`ev-${i}`}
+                  className="dust-enter"
+                  style={{
+                    animationDelay: `${(t * DRAW_DURATION).toFixed(2)}s`,
+                    ["--dust-op" as string]: baseOp,
+                  }}
                   cx={x}
                   cy={y}
-                  r={r * 2.6}
-                  fill={color}
-                  opacity={isHovered ? 0.45 : near ? 0.3 : 0.18}
-                  className="pointer-events-none transition-opacity"
+                  r={near ? 2.4 : 1.4}
+                  fill={e.ambito === "greco" ? EVENTO_COLOR.greco : EVENTO_COLOR.romano}
+                  opacity={baseOp}
                 />
-                {/* punto */}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={r}
-                  fill={color}
-                  stroke="#fafaf9"
-                  strokeWidth={isHovered ? 2 : 1}
-                  strokeOpacity={isHovered ? 1 : 0.7}
-                  className="cursor-pointer transition-all"
-                  onMouseEnter={() => showOpera(o)}
-                  onMouseLeave={scheduleHide}
-                />
+              );
+            })}
+
+            {/* Fili di influenza (sotto ai pallini) */}
+            {threads && (
+              <g className="pointer-events-none">
+                {threads.stesso.map((t, i) => (
+                  <g key={`th-${i}`}>
+                    <line
+                      className="thread-line"
+                      style={{ animationDelay: `${(i * 0.02).toFixed(2)}s` }}
+                      pathLength={1}
+                      x1={threads.from.x}
+                      y1={threads.from.y}
+                      x2={t.p.x}
+                      y2={t.p.y}
+                      stroke={t.color}
+                      strokeWidth={2.5 / zoom.k}
+                      strokeOpacity={0.1}
+                    />
+                    <line
+                      className="thread-line"
+                      style={{ animationDelay: `${(i * 0.02).toFixed(2)}s` }}
+                      pathLength={1}
+                      x1={threads.from.x}
+                      y1={threads.from.y}
+                      x2={t.p.x}
+                      y2={t.p.y}
+                      stroke={t.color}
+                      strokeWidth={0.9 / zoom.k}
+                      strokeOpacity={0.55}
+                    />
+                  </g>
+                ))}
+                {threads.versoDante && (
+                  <>
+                    <line
+                      className="thread-line"
+                      pathLength={1}
+                      x1={threads.from.x}
+                      y1={threads.from.y}
+                      x2={threads.versoDante.x}
+                      y2={threads.versoDante.y}
+                      stroke={DANTE_THREAD}
+                      strokeWidth={4 / zoom.k}
+                      strokeOpacity={0.12}
+                    />
+                    <line
+                      className="thread-line"
+                      pathLength={1}
+                      x1={threads.from.x}
+                      y1={threads.from.y}
+                      x2={threads.versoDante.x}
+                      y2={threads.versoDante.y}
+                      stroke={DANTE_THREAD}
+                      strokeWidth={1.3 / zoom.k}
+                      strokeOpacity={0.85}
+                      strokeDasharray={`${5 / zoom.k} ${4 / zoom.k}`}
+                    />
+                  </>
+                )}
               </g>
-            );
-          })}
+            )}
 
-          {/* linea del cursore temporale */}
-          <line
-            x1={params.cx}
-            y1={params.cy}
-            x2={cursorPoint.x}
-            y2={cursorPoint.y}
-            stroke="#fbbf24"
-            strokeWidth={1}
-            strokeDasharray="4 4"
-            opacity={0.5}
-          />
-          <circle
-            cx={cursorPoint.x}
-            cy={cursorPoint.y}
-            r={5}
-            fill="none"
-            stroke="#fbbf24"
-            strokeWidth={2}
-            opacity={0.9}
-          />
+            {/* Le opere: punti luminosi con alone. Compaiono in sequenza dal centro. */}
+            {opereFiltrate.map((o) => {
+              const { x, y } = annoToPoint(o.anno, params);
+              const near = Math.abs(o.anno - cursorAnno) <= CURSOR_WINDOW;
+              const isHovered = hovered?.slug === o.slug;
+              const dimmed = focus != null && o.periodo !== focus;
+              const t = annoToT(o.anno, params);
+              const rBase = o.influenzaDante === "alta" ? 7 : o.influenzaDante === "media" ? 5.5 : 4.5;
+              const r = isHovered ? rBase + 3 : near ? rBase + 1.5 : rBase;
+              const color = PERIODO_COLOR[o.periodo] ?? "#a8a29e";
+              const haloOp = (isHovered ? 0.45 : near ? 0.3 : 0.18) * (dimmed ? 0.25 : 1);
+              const dotOp = dimmed ? 0.2 : 1;
+              return (
+                <g
+                  key={o.slug}
+                  className="dot-enter"
+                  style={{ animationDelay: `${(t * DRAW_DURATION).toFixed(2)}s` }}
+                >
+                  {/* alone luminoso */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={r * 2.6}
+                    fill={color}
+                    opacity={haloOp}
+                    className="pointer-events-none transition-opacity"
+                  />
+                  {/* punto */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={r}
+                    fill={color}
+                    stroke="#fafaf9"
+                    strokeWidth={isHovered ? 2 : 1}
+                    strokeOpacity={(isHovered ? 1 : 0.7) * (dimmed ? 0.4 : 1)}
+                    opacity={dotOp}
+                    className="cursor-pointer transition-all"
+                    onMouseEnter={() => showOpera(o)}
+                    onMouseLeave={scheduleHide}
+                  />
+                </g>
+              );
+            })}
 
-          <text x={params.cx} y={params.cy - 4} textAnchor="middle" className="fill-stone-400 text-[11px]">
-            VIII a.C.
-          </text>
-          <text x={params.cx} y={params.cy + 14} textAnchor="middle" className="fill-stone-400 text-[11px]">
-            → Dante
-          </text>
+            {/* linea del cursore temporale */}
+            <line
+              x1={params.cx}
+              y1={params.cy}
+              x2={cursorPoint.x}
+              y2={cursorPoint.y}
+              stroke="#fbbf24"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.5}
+            />
+            <circle
+              cx={cursorPoint.x}
+              cy={cursorPoint.y}
+              r={5}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth={2}
+              opacity={0.9}
+            />
+
+            <text x={params.cx} y={params.cy - 4} textAnchor="middle" className="fill-stone-400 text-[11px]">
+              VIII a.C.
+            </text>
+            <text x={params.cx} y={params.cy + 14} textAnchor="middle" className="fill-stone-400 text-[11px]">
+              → Dante
+            </text>
+          </g>
         </svg>
 
         {hovered && (
@@ -314,18 +455,46 @@ export default function Spiral({
         </div>
 
         <div>
-          <h4 className="mb-2 text-xs uppercase tracking-wide text-stone-400">Legenda periodi</h4>
-          <ul className="space-y-1 text-xs text-stone-400">
-            {periodiPresenti.map((p) => (
-              <li key={p} className="flex items-center gap-2">
-                <span
-                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: PERIODO_COLOR[p] ?? "#a8a29e" }}
-                />
-                {PERIODO_LABEL[p] ?? p}
-              </li>
-            ))}
-            <li className="flex items-center gap-2 pt-1">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <h4 className="text-xs uppercase tracking-wide text-stone-400">Periodi</h4>
+            {focus ? (
+              <button
+                onClick={() => setFocus(null)}
+                className="whitespace-nowrap text-xs text-amber-300 hover:text-amber-200"
+              >
+                ← vista completa
+              </button>
+            ) : (
+              <span className="whitespace-nowrap text-[11px] text-stone-500">clicca per mettere a fuoco</span>
+            )}
+          </div>
+          <ul className="space-y-0.5 text-xs text-stone-400">
+            {periodiPresenti.map((p) => {
+              const active = focus === p;
+              return (
+                <li key={p}>
+                  <button
+                    onClick={() => toggleFocus(p)}
+                    className={`flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left transition ${
+                      active
+                        ? "bg-amber-400/15 text-stone-100 ring-1 ring-inset ring-amber-400/40"
+                        : focus
+                        ? "text-stone-500 hover:bg-white/5"
+                        : "hover:bg-white/5"
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: PERIODO_COLOR[p] ?? "#a8a29e" }}
+                    />
+                    {PERIODO_LABEL[p] ?? p}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <ul className="mt-2 space-y-1 px-2 text-xs text-stone-500">
+            <li className="flex items-center gap-2">
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: EVENTO_COLOR.greco, opacity: 0.6 }}
@@ -338,6 +507,10 @@ export default function Spiral({
                 style={{ backgroundColor: EVENTO_COLOR.romano, opacity: 0.6 }}
               />
               Eventi storici (ambito romano)
+            </li>
+            <li className="flex items-center gap-2 pt-1">
+              <span className="inline-block h-px w-4 shrink-0" style={{ backgroundColor: DANTE_THREAD }} />
+              Filo di influenza verso Dante (al passaggio del mouse)
             </li>
           </ul>
         </div>
