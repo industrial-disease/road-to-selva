@@ -63,6 +63,7 @@ export const PERIODO_LABEL: Record<string, string> = {
   "roma-imperiale": "Roma imperiale",
   "tarda-antichita": "Tarda antichità",
   "alto-medioevo": "Alto Medioevo",
+  "basso-medioevo": "Basso Medioevo (scolastica, trovatori, romanzo cortese)",
   "volgare-duecento": "Volgare - Duecento",
   stilnovo: "Dolce stil novo",
   dante: "Dante",

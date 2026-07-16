@@ -66,6 +66,7 @@ export const PERIODO_COLOR: Record<string, string> = {
   "roma-imperiale": "#dc2626",
   "tarda-antichita": "#c2410c",
   "alto-medioevo": "#a16207",
+  "basso-medioevo": "#7e22ce",
   "volgare-duecento": "#4d7c0f",
   stilnovo: "#15803d",
   dante: "#7c2d12",
