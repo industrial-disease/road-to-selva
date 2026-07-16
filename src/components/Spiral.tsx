@@ -111,23 +111,33 @@ export default function Spiral({
   const cursorPoint = annoToPoint(cursorAnno, params);
 
   // Fili da mostrare per l'opera sotto il cursore, già trasformati in coordinate SVG.
+  // Stesso autore → anello luminoso sui punti (le opere di uno stesso autore sono spesso
+  // vicinissime nel tempo: una linea vi si perderebbe, un anello si vede sempre).
+  // Verso Dante → filo dorato singolo; ma se si passa sulla Vita Nuova stessa, il filo
+  // si apre a raggiera verso TUTTE le opere di influenza alta/media: il punto d'arrivo
+  // del viaggio che mostra da dove viene tutto.
   const threads = useMemo(() => {
     if (!hovered) return null;
     const from = annoToPoint(hovered.anno, params);
-    const stesso = (perAutore.get(hovered.autore) ?? [])
+
+    const stessoAutore = (perAutore.get(hovered.autore) ?? [])
       .filter((o) => o.slug !== hovered.slug)
       .map((o) => ({ o, d: Math.abs(o.anno - hovered.anno) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, MAX_AUTHOR_THREADS)
-      .map(({ o }) => ({ p: annoToPoint(o.anno, params), color: PERIODO_COLOR[o.periodo] ?? "#a8a29e" }));
-    const versoDante =
-      danteTarget &&
-      hovered.periodo !== "dante" &&
-      (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
-        ? annoToPoint(danteTarget.anno, params)
-        : null;
-    return { from, stesso, versoDante };
-  }, [hovered, params, perAutore, danteTarget]);
+      .map(({ o }) => annoToPoint(o.anno, params));
+
+    const danteLines =
+      hovered.periodo === "dante"
+        ? opere
+            .filter((o) => o.slug !== hovered.slug && (o.influenzaDante === "alta" || o.influenzaDante === "media"))
+            .map((o) => annoToPoint(o.anno, params))
+        : danteTarget && (hovered.influenzaDante === "alta" || hovered.influenzaDante === "media")
+        ? [annoToPoint(danteTarget.anno, params)]
+        : [];
+
+    return { from, stessoAutore, danteLines };
+  }, [hovered, params, perAutore, danteTarget, opere]);
 
   // Posiziona il box hover accanto al pallino, tenendo conto dello zoom della cinepresa.
   const hoveredPos = hovered ? annoToPoint(hovered.anno, params) : null;
@@ -220,64 +230,39 @@ export default function Spiral({
               );
             })}
 
-            {/* Fili di influenza (sotto ai pallini) */}
-            {threads && (
+            {/* Fili verso Dante (sotto ai pallini): singolo filo, o raggiera se si è
+                sulla Vita Nuova stessa */}
+            {threads && threads.danteLines.length > 0 && (
               <g className="pointer-events-none">
-                {threads.stesso.map((t, i) => (
-                  <g key={`th-${i}`}>
+                {threads.danteLines.map((p, i) => (
+                  <g key={`dt-${i}`}>
                     <line
                       className="thread-line"
-                      style={{ animationDelay: `${(i * 0.02).toFixed(2)}s` }}
+                      style={{ animationDelay: `${(i * 0.012).toFixed(3)}s` }}
                       pathLength={1}
                       x1={threads.from.x}
                       y1={threads.from.y}
-                      x2={t.p.x}
-                      y2={t.p.y}
-                      stroke={t.color}
-                      strokeWidth={2.5 / zoom.k}
+                      x2={p.x}
+                      y2={p.y}
+                      stroke={DANTE_THREAD}
+                      strokeWidth={4 / zoom.k}
                       strokeOpacity={0.1}
                     />
                     <line
                       className="thread-line"
-                      style={{ animationDelay: `${(i * 0.02).toFixed(2)}s` }}
+                      style={{ animationDelay: `${(i * 0.012).toFixed(3)}s` }}
                       pathLength={1}
                       x1={threads.from.x}
                       y1={threads.from.y}
-                      x2={t.p.x}
-                      y2={t.p.y}
-                      stroke={t.color}
-                      strokeWidth={0.9 / zoom.k}
-                      strokeOpacity={0.55}
+                      x2={p.x}
+                      y2={p.y}
+                      stroke={DANTE_THREAD}
+                      strokeWidth={1.3 / zoom.k}
+                      strokeOpacity={0.8}
+                      strokeDasharray={`${5 / zoom.k} ${4 / zoom.k}`}
                     />
                   </g>
                 ))}
-                {threads.versoDante && (
-                  <>
-                    <line
-                      className="thread-line"
-                      pathLength={1}
-                      x1={threads.from.x}
-                      y1={threads.from.y}
-                      x2={threads.versoDante.x}
-                      y2={threads.versoDante.y}
-                      stroke={DANTE_THREAD}
-                      strokeWidth={4 / zoom.k}
-                      strokeOpacity={0.12}
-                    />
-                    <line
-                      className="thread-line"
-                      pathLength={1}
-                      x1={threads.from.x}
-                      y1={threads.from.y}
-                      x2={threads.versoDante.x}
-                      y2={threads.versoDante.y}
-                      stroke={DANTE_THREAD}
-                      strokeWidth={1.3 / zoom.k}
-                      strokeOpacity={0.85}
-                      strokeDasharray={`${5 / zoom.k} ${4 / zoom.k}`}
-                    />
-                  </>
-                )}
               </g>
             )}
 
@@ -325,6 +310,27 @@ export default function Spiral({
                 </g>
               );
             })}
+
+            {/* Anelli sulle altre opere dello stesso autore: sopra i pallini, così restano
+                visibili anche negli autori più prolifici dove le opere si accalcano. */}
+            {threads && threads.stessoAutore.length > 0 && (
+              <g className="pointer-events-none">
+                {threads.stessoAutore.map((p, i) => (
+                  <circle
+                    key={`ring-${i}`}
+                    className="author-ring"
+                    style={{ animationDelay: `${(i * 0.02).toFixed(2)}s` }}
+                    cx={p.x}
+                    cy={p.y}
+                    r={9}
+                    fill="none"
+                    stroke="#e7e5e4"
+                    strokeWidth={1.4 / zoom.k}
+                    strokeOpacity={0.85}
+                  />
+                ))}
+              </g>
+            )}
 
             {/* linea del cursore temporale */}
             <line
@@ -510,7 +516,11 @@ export default function Spiral({
             </li>
             <li className="flex items-center gap-2 pt-1">
               <span className="inline-block h-px w-4 shrink-0" style={{ backgroundColor: DANTE_THREAD }} />
-              Filo di influenza verso Dante (al passaggio del mouse)
+              Filo verso Dante (o a raggiera, se passi sulla Vita Nuova)
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-stone-300" />
+              Anello: altre opere dello stesso autore
             </li>
           </ul>
         </div>
