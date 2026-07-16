@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Opera, Evento } from "@/lib/types";
 import { formatAnno, PERIODO_LABEL } from "@/lib/types";
@@ -26,6 +26,22 @@ export default function Spiral({
 
   const [hovered, setHovered] = useState<Opera | null>(null);
   const [cursorAnno, setCursorAnno] = useState<number>(Math.round((minAnno + maxAnno) / 2));
+
+  // Il box del hover è lontano dal pallino (in basso nell'SVG): senza un piccolo
+  // ritardo cancellabile, il mouse esce dal cerchio prima di raggiungere il box e
+  // questo sparisce a metà strada. Si nasconde solo se il cursore non rientra né sul
+  // pallino né sul box entro la finestra di grazia.
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showOpera = (o: Opera) => {
+    if (hideTimeout.current) {
+      clearTimeout(hideTimeout.current);
+      hideTimeout.current = null;
+    }
+    setHovered(o);
+  };
+  const scheduleHide = () => {
+    hideTimeout.current = setTimeout(() => setHovered(null), 250);
+  };
 
   const trackD = useMemo(() => spiralTrackD(params), [params]);
   const cursorPoint = annoToPoint(cursorAnno, params);
@@ -83,8 +99,8 @@ export default function Spiral({
                   strokeWidth={isHovered ? 2 : 1}
                   opacity={near || isHovered ? 1 : 0.85}
                   className="cursor-pointer transition-all"
-                  onMouseEnter={() => setHovered(o)}
-                  onMouseLeave={() => setHovered((h) => (h?.slug === o.slug ? null : h))}
+                  onMouseEnter={() => showOpera(o)}
+                  onMouseLeave={scheduleHide}
                 />
               </g>
             );
@@ -122,7 +138,11 @@ export default function Spiral({
         </svg>
 
         {hovered && (
-          <div className="absolute bottom-2 left-2 right-2 max-w-md rounded-lg border border-amber-300 bg-amber-50/95 p-4 shadow-lg backdrop-blur">
+          <div
+            className="absolute bottom-2 left-2 right-2 max-w-md rounded-lg border border-amber-300 bg-amber-50/95 p-4 shadow-lg backdrop-blur"
+            onMouseEnter={() => showOpera(hovered)}
+            onMouseLeave={scheduleHide}
+          >
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="font-semibold text-stone-900">{hovered.opera}</h3>
               <span className="whitespace-nowrap font-mono text-xs text-stone-500">
@@ -173,8 +193,8 @@ export default function Spiral({
                 <li key={o.slug}>
                   <Link
                     href={`/opere/${o.slug}`}
-                    onMouseEnter={() => setHovered(o)}
-                    onMouseLeave={() => setHovered(null)}
+                    onMouseEnter={() => showOpera(o)}
+                    onMouseLeave={scheduleHide}
                     className="block rounded px-2 py-1 text-sm text-stone-700 hover:bg-stone-100"
                   >
                     <span
