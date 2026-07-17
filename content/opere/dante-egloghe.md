@@ -1,6 +1,6 @@
 ---
 autore: Dante Alighieri
-opera: Egloge
+opera: Egloghe
 anno: 1319
 periodo: dante
 disciplina: Poesia bucolica
