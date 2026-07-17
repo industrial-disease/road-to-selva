@@ -21,6 +21,9 @@ const AREA_FILL: Record<Area, string> = {
 /** Sopra questa soglia il nodo mostra sempre l'etichetta, altrimenti solo al passaggio. */
 const LABEL_MIN = 8;
 
+/** Semi-ampiezza (anni) della finestra mobile del cursore temporale. */
+const FINESTRA = 80;
+
 interface Nodo {
   nome: string;
   x: number;
@@ -37,6 +40,19 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [area, setArea] = useState<"tutti" | Area>("tutti");
+  const [tempoAttivo, setTempoAttivo] = useState(false);
+  const [annoState, setAnnoState] = useState<number | null>(null);
+
+  const [minAnno, maxAnno] = useMemo(() => {
+    let mn = Infinity;
+    let mx = -Infinity;
+    for (const o of opere) {
+      if (o.anno < mn) mn = o.anno;
+      if (o.anno > mx) mx = o.anno;
+    }
+    return [mn, mx];
+  }, [opere]);
+  const anno = annoState ?? maxAnno;
 
   const nodi = useMemo<Nodo[]>(() => {
     const gruppi = new Map<string, { lat: number; lng: number; opere: Opera[] }>();
@@ -109,6 +125,42 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
         ))}
       </div>
 
+      {/* Cursore temporale: finestra mobile che accende i luoghi attivi nel periodo */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="mr-1 text-xs uppercase tracking-wide text-stone-500">Tempo</span>
+        <input
+          type="range"
+          min={minAnno}
+          max={maxAnno}
+          value={anno}
+          onChange={(e) => {
+            setAnnoState(Number(e.target.value));
+            setTempoAttivo(true);
+          }}
+          className="h-1 w-56 max-w-full cursor-pointer accent-amber-400 md:w-72"
+          aria-label="Cursore temporale"
+        />
+        <span className="w-28 font-mono text-sm text-amber-200">
+          {tempoAttivo ? formatAnno(anno) : "tutte le epoche"}
+        </span>
+        {tempoAttivo ? (
+          <>
+            <span className="text-xs text-stone-500">finestra ±{FINESTRA} anni</span>
+            <button
+              onClick={() => {
+                setTempoAttivo(false);
+                setAnnoState(null);
+              }}
+              className="rounded-full bg-white/5 px-3 py-1 text-xs text-stone-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/10"
+            >
+              Tutte le epoche
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-stone-500">trascina per viaggiare nel tempo</span>
+        )}
+      </div>
+
       <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/5">
         <svg
           viewBox={`0 0 ${VBW} ${VBH}`}
@@ -150,8 +202,32 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
           {/* Nodi-città */}
           {nodi.map((n) => {
             const attivo = n.nome === (selected ?? hovered);
-            const r = raggio(n.count);
-            const mostraEtichetta = n.count >= LABEL_MIN || attivo;
+            // Quante opere del luogo cadono nella finestra del cursore.
+            const nFinestra = tempoAttivo
+              ? n.opere.reduce((k, o) => k + (Math.abs(o.anno - anno) <= FINESTRA ? 1 : 0), 0)
+              : n.count;
+            // Fantasma: luogo senza attività nel periodo scelto.
+            const fantasma = tempoAttivo && nFinestra === 0;
+
+            if (fantasma) {
+              return (
+                <g
+                  key={n.nome}
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHovered(n.nome)}
+                  onClick={() => setSelected((s) => (s === n.nome ? null : n.nome))}
+                >
+                  <circle cx={n.x} cy={n.y} r={2.2} fill={AREA_FILL[n.area]} opacity={0.16} />
+                  {attivo && (
+                    <circle cx={n.x} cy={n.y} r={4} fill="none" stroke="#ffffff" strokeWidth={1.2} opacity={0.7} />
+                  )}
+                </g>
+              );
+            }
+
+            const r = raggio(nFinestra);
+            const mostraEtichetta =
+              attivo || (tempoAttivo ? nFinestra > 0 : n.count >= LABEL_MIN);
             return (
               <g
                 key={n.nome}
