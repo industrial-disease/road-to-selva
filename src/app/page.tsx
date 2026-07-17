@@ -27,12 +27,20 @@ export default function Home() {
               fuoco, trascina il cursore per viaggiare nel tempo.
             </p>
           </div>
-          <Link
-            href="/elenco"
-            className="whitespace-nowrap text-sm text-stone-400 transition-colors hover:text-amber-300"
-          >
-            Vedi elenco lineare →
-          </Link>
+          <nav className="flex shrink-0 flex-col items-end gap-1 text-sm text-stone-400">
+            <Link
+              href="/mappa"
+              className="whitespace-nowrap transition-colors hover:text-amber-300"
+            >
+              Vedi la mappa dei luoghi →
+            </Link>
+            <Link
+              href="/elenco"
+              className="whitespace-nowrap transition-colors hover:text-amber-300"
+            >
+              Vedi elenco lineare →
+            </Link>
+          </nav>
         </header>
         <Spiral opere={opere} eventi={eventi} />
       </main>
