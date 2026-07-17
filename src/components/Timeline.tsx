@@ -5,9 +5,8 @@ import Link from "next/link";
 import type { Area, Rilevanza, TimelineItem } from "@/lib/types";
 import {
   formatAnno,
-  AMBITO_DOT,
-  AREA_LABEL,
   AREA_DOT,
+  AREA_LABEL,
   INFLUENZA_LABEL,
   RILEVANZA_LABEL,
   passaRilevanza,
@@ -135,7 +134,7 @@ export default function Timeline({ items }: { items: TimelineItem[] }) {
               className="flex items-start gap-3 rounded px-2 py-1 text-sm text-stone-700 hover:bg-stone-100"
             >
               <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${AMBITO_DOT[item.data.ambito]}`}
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${AREA_DOT[item.data.ambito]}`}
               />
               <span className="w-24 shrink-0 whitespace-nowrap font-mono text-stone-500">
                 {formatAnno(item.data.anno, item.data.approssimato)}

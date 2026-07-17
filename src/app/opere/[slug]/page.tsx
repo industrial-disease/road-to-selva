@@ -7,7 +7,7 @@ import {
 } from "@/lib/content";
 import {
   formatAnno,
-  AMBITO_DOT,
+  AREA_DOT,
   INFLUENZA_LABEL,
   TIPO_INFLUENZA_LABEL,
   PERIODO_LABEL,
@@ -87,7 +87,7 @@ export default function OperaPage({ params }: { params: { slug: string } }) {
               className="flex items-start gap-3 rounded px-2 py-1 text-sm text-stone-700"
             >
               <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${AMBITO_DOT[e.ambito]}`}
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${AREA_DOT[e.ambito]}`}
               />
               <span className="w-24 shrink-0 whitespace-nowrap font-mono text-stone-500">
                 {formatAnno(e.anno, e.approssimato)}

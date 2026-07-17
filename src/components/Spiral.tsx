@@ -2,8 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Opera, Evento, Rilevanza } from "@/lib/types";
-import { formatAnno, PERIODO_LABEL, RILEVANZA_LABEL, passaRilevanza } from "@/lib/types";
+import type { Area, Opera, Evento, Rilevanza } from "@/lib/types";
+import { formatAnno, PERIODO_LABEL, RILEVANZA_LABEL, AREA_LABEL, passaRilevanza } from "@/lib/types";
 import { makeSpiralParams, annoToPoint, annoToT, spiralTrackD, makeStars, PERIODO_COLOR } from "@/lib/spiral";
 
 const SIZE = 940;
@@ -11,8 +11,15 @@ const CURSOR_WINDOW = 30; // anni di "vicinanza" evidenziati intorno al cursore
 const DRAW_DURATION = 2.6; // deve combaciare con .spiral-track-anim in globals.css
 const MAX_AUTHOR_THREADS = 14; // per non affollare gli autori con moltissime opere
 
-// Colori evento più brillanti sul fondo scuro rispetto alla vista chiara.
-const EVENTO_COLOR = { greco: "#60a5fa", romano: "#f87171" } as const;
+// Colori evento più brillanti sul fondo scuro rispetto alla vista chiara, un'area per
+// ciascuna delle culture coperte dal pulviscolo storico (stessa mappa delle opere).
+const EVENTO_COLOR: Record<Area, string> = {
+  greco: "#60a5fa",
+  romano: "#f87171",
+  "arabo-ebraico": "#34d399",
+  "francese-occitano": "#c084fc",
+  italiano: "#fbbf24",
+};
 
 export default function Spiral({
   opere,
@@ -205,7 +212,7 @@ export default function Spiral({
                   cx={x}
                   cy={y}
                   r={near ? 2.4 : 1.4}
-                  fill={e.ambito === "greco" ? EVENTO_COLOR.greco : EVENTO_COLOR.romano}
+                  fill={EVENTO_COLOR[e.ambito]}
                   opacity={baseOp}
                 />
               );
@@ -438,20 +445,15 @@ export default function Spiral({
             })}
           </ul>
           <ul className="mt-2 space-y-1 px-2 text-xs text-stone-500">
-            <li className="flex items-center gap-2">
-              <span
-                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: EVENTO_COLOR.greco, opacity: 0.6 }}
-              />
-              Eventi storici (ambito greco)
-            </li>
-            <li className="flex items-center gap-2">
-              <span
-                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: EVENTO_COLOR.romano, opacity: 0.6 }}
-              />
-              Eventi storici (ambito romano)
-            </li>
+            {(Object.keys(EVENTO_COLOR) as Area[]).map((area) => (
+              <li key={area} className="flex items-center gap-2">
+                <span
+                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: EVENTO_COLOR[area], opacity: 0.6 }}
+                />
+                Eventi storici ({AREA_LABEL[area].toLowerCase()})
+              </li>
+            ))}
             <li className="flex items-center gap-2 pt-1">
               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-stone-300" />
               Anello: altre opere dello stesso autore (al passaggio del mouse)

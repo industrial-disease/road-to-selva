@@ -1,4 +1,3 @@
-export type Ambito = "romano" | "greco";
 export type TipoEvento = "storia" | "cultura" | "misto";
 export type Influenza = "alta" | "media" | "bassa";
 export type TipoInfluenza = "diretta" | "indiretta";
@@ -7,7 +6,7 @@ export interface Evento {
   anno: number;
   annoRaw: string;
   approssimato: boolean;
-  ambito: Ambito;
+  ambito: Area;
   tipo: TipoEvento;
   banda: string;
   testo: string;
@@ -37,11 +36,6 @@ export function formatAnno(anno: number, approssimato = false): string {
   if (anno < 0) return `${prefix}${Math.abs(anno)} a.C.`;
   return `${prefix}${anno} d.C.`;
 }
-
-export const AMBITO_DOT: Record<Ambito, string> = {
-  romano: "bg-red-700",
-  greco: "bg-blue-700",
-};
 
 /**
  * Area culturale unificata, usata per filtrare insieme eventi (via `ambito`) e opere
@@ -80,7 +74,7 @@ export function operaArea(lingua: string): Area | null {
   return LINGUA_TO_AREA[lingua] ?? null;
 }
 
-export function eventoArea(ambito: Ambito): Area {
+export function eventoArea(ambito: Area): Area {
   return ambito;
 }
 
