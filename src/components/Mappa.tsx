@@ -36,10 +36,12 @@ const stars = makeStars(150, Math.max(VBW, VBH));
 export default function Mappa({ opere }: { opere: Opera[] }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [area, setArea] = useState<"tutti" | Area>("tutti");
 
   const nodi = useMemo<Nodo[]>(() => {
     const gruppi = new Map<string, { lat: number; lng: number; opere: Opera[] }>();
     for (const o of opere) {
+      if (area !== "tutti" && operaArea(o.lingua) !== area) continue;
       const l = luogoDiAutore(o.autore);
       if (!l) continue;
       const g = gruppi.get(l.nome) ?? { lat: l.lat, lng: l.lng, opere: [] };
@@ -66,7 +68,7 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
     });
     // I nodi piccoli si disegnano per ultimi, così restano in cima e cliccabili.
     return out.sort((a, b) => b.count - a.count);
-  }, [opere]);
+  }, [opere, area]);
 
   const nodoAttivo = useMemo(
     () => nodi.find((n) => n.nome === (selected ?? hovered)) ?? null,
@@ -94,6 +96,19 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
 
   return (
     <div className="relative">
+      {/* Filtro per area culturale */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs uppercase tracking-wide text-stone-500">Area</span>
+        <FiltroBtn attivo={area === "tutti"} onClick={() => setArea("tutti")}>
+          Tutte
+        </FiltroBtn>
+        {(Object.keys(AREA_FILL) as Area[]).map((a) => (
+          <FiltroBtn key={a} attivo={area === a} colore={AREA_FILL[a]} onClick={() => setArea(a)}>
+            {AREA_LABEL[a]}
+          </FiltroBtn>
+        ))}
+      </div>
+
       <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/5">
         <svg
           viewBox={`0 0 ${VBW} ${VBH}`}
@@ -249,18 +264,41 @@ export default function Mappa({ opere }: { opere: Opera[] }) {
       )}
 
       {/* Legenda */}
-      <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-stone-400">
-        {(Object.keys(AREA_FILL) as Area[]).map((area) => (
-          <li key={area} className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: AREA_FILL[area] }}
-            />
-            {AREA_LABEL[area]}
-          </li>
-        ))}
-        <li className="text-stone-500">Il diametro del punto cresce col numero di opere del luogo.</li>
-      </ul>
+      <p className="mt-4 text-xs text-stone-500">
+        Il colore indica l&apos;area culturale (vedi filtro); il diametro del punto cresce
+        col numero di opere del luogo.
+      </p>
     </div>
+  );
+}
+
+function FiltroBtn({
+  attivo,
+  colore,
+  onClick,
+  children,
+}: {
+  attivo: boolean;
+  colore?: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition ${
+        attivo
+          ? "bg-stone-100 text-stone-900"
+          : "bg-white/5 text-stone-300 ring-1 ring-inset ring-white/10 hover:bg-white/10"
+      }`}
+    >
+      {colore && (
+        <span
+          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: colore }}
+        />
+      )}
+      {children}
+    </button>
   );
 }
